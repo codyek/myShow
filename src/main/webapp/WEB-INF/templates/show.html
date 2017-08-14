@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+<meta charset="UTF-8"/>
+<title>数据展示BTC</title>
+<script type="text/javascript" th:src="@{/static/js/echarts.min.js}"></script>
+<script type="text/javascript" th:src="@{/static/js/jquery/jquery-1.9.1.min.js}"></script>
+</head>
+<body style="height: 100%; margin: 0">
+       <div id="container" style="height: 500px"></div>
+</body>
+<script th:inline="javascript">  
+/*<![CDATA[*/
+
+var dom = document.getElementById("container");
+var myChart = echarts.init(dom);
+var app = {};
+option = null;
+
+$(document).ready(function() {
+	var rawData = [[${tradeData}]];
+	var data = splitData(rawData);
+		
+	myChart.setOption(option = {
+		title: {
+			text: '交易价格',
+	        left: 0
+	    },
+	    tooltip: {
+	    	trigger: 'axis',
+	        axisPointer: {
+	            type: 'line'
+	        }
+	    },
+	    legend: {
+	        data:['OKEX','XBTUSD','XBTU17']
+	    },
+	    grid: {
+	        left: '10%',
+	        right: '10%',
+	        bottom: '15%'
+	    },
+	    xAxis: {
+	    	type: 'category',
+	        scale: true,
+	        boundaryGap: false,
+	        axisLine: {onZero: false},//X/Y轴O刻度是否重合
+	        splitLine: {show: false},//是否显示分割线
+	        splitNumber: 20,//分割数量
+	        min: 'dataMin',//坐标轴的最小刻目
+	        max: 'dataMax',
+	        data: data.PriceTime
+	    },
+	    yAxis: {
+	    	 scale: true,
+	         splitArea: {
+	             show: true
+	         }
+	    },
+	    dataZoom: [
+              {
+                  type: 'inside',
+                  start: 50,
+                  end: 100
+              },
+              {
+                  show: true,
+                  type: 'slider',
+                  y: '90%',
+                  start: 50,
+                  end: 100
+              }
+	    ],
+	    series: [
+	        {
+	            name:'OKEX',
+	            type:'line',
+	            smooth: true,
+	            data:data.okdata,
+	            lineStyle: {
+	                normal: {opacity: 0.5}
+	            }
+	        },
+	        {
+	            name:'XBTUSD',
+	            type:'line',
+	            smooth: true,
+	            data:data.usddata,
+	            lineStyle: {
+	                normal: {opacity: 0.5}
+	            }
+	        },
+	        {
+	            name:'XBTU17',
+	            type:'line',
+	            smooth: true,
+	            data:data.u17data,
+	            lineStyle: {
+	                normal: {opacity: 0.5}
+	            }
+	        }
+	    ]	
+	}, true);
+});
+
+function splitData(rawData) {
+    var PriceTime = [];
+    var okdata = [];
+    var usddata = [];
+    var u17data = [];
+    for (var i = 0; i < rawData.length; i++) {
+    	var obj = rawData[i];
+    	PriceTime.push(obj.time);
+    	okdata.push(obj.okPrice);
+    	usddata.push(obj.mexUSDPrice);
+    	u17data.push(obj.mexU17Price);
+    }
+
+    return {
+    	PriceTime: PriceTime,
+    	okdata: okdata,
+    	usddata: usddata,
+    	u17data: u17data
+    };
+} 
+
+	
+	
+/*]]>*/
+</script>
+</html>

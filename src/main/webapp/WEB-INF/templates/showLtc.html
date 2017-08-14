@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+<meta charset="UTF-8"/>
+<title>数据展示LTC</title>
+<link th:href="@{/static/css/jquery.mloading.css}" rel="stylesheet" type="text/css" />
+<script type="text/javascript" th:src="@{/static/js/jquery/jquery-1.9.1.min.js}"></script>
+<script type="text/javascript" th:src="@{/static/js/jquery/jquery.mloading.js}"></script>
+<script type="text/javascript" th:src="@{/static/js/echarts.min.js}"></script>
+<script type="text/javascript" th:src="@{/static/js/My97DatePicker/WdatePicker.js}"></script>
+</head>
+<body style="height: 100%; margin: 0">
+	<dev style="width: 100%; padding-left: 30px">
+		查询时间段：<input id="sdate" class="Wdate" style="width: 90px;" onfocus="WdatePicker({dateFmt:'yyyy-MM-dd',readOnly:true,maxDate:'#F{$dp.$D(\'edate\')}',isShowClear:false})" />  
+    	- <input id="edate" class="Wdate" style="width: 90px;" onfocus="WdatePicker({dateFmt:'yyyy-MM-dd',readOnly:true,maxDate:'%y-%M-{%d+1}',isShowClear:false})"/>
+    	<input type="button" id="click" value="查询" onclick="getPriceData()"/>
+    	<span id="showText"></span>
+    </dev>
+    <div id="container" style="height: 660px"></div>
+</body>
+<script th:inline="javascript">  
+/*<![CDATA[*/
+
+var dom = document.getElementById("container");
+var myChart = echarts.init(dom);
+var app = {};
+option = null;
+
+
+$(document).ready(function() {
+	var d = new Date();
+    function addzero(v) {if (v < 10) return '0' + v;return v.toString();}
+    var s = d.getFullYear().toString() + '-'+addzero(d.getMonth() + 1) + '-'+addzero(d.getDate());
+    var e = d.getFullYear().toString() + '-'+addzero(d.getMonth() + 1) + '-'+addzero(d.getDate() + 1);
+    $("#sdate").val(s);
+    $("#edate").val(e);
+    getPriceData();
+	
+});
+
+//遮罩效果
+$("body").mLoading({
+    text:"加载中...",
+    icon:"",
+    html:false,
+    content:"",
+    mask:true
+});
+
+function splitData(rawData) {
+    var PriceTime = [];
+    var okdata = [];
+    var usddata = [];
+    var agio = [];
+    for (var i = 0; i < rawData.length; i++) {
+    	var obj = rawData[i];
+    	PriceTime.push(obj.time);
+    	okdata.push(obj.okLTCPrice);
+    	usddata.push(obj.mexLTCPrice);
+    	agio.push(obj.okToMexAgio);
+    }
+
+    return {
+    	PriceTime: PriceTime,
+    	okdata: okdata,
+    	usddata: usddata,
+    	agio: agio
+    };
+} 
+
+//数字排序
+function sortNumber(a,b){ 
+	return a - b 
+} 
+
+//统计数据
+function total(data){
+	var min = 0;
+	var max = 0;
+	var average = 0;
+	var arr = data.agio;
+	var count = arr.length;
+	if(count > 0){
+		arr.sort(sortNumber);
+		var sum = 0;
+		for(var i =0; i<count; i++){
+			sum +=arr[i];
+		}
+		min = arr[0];
+		max = arr[count -1];
+		average = sum/count;
+		average = fomatFloat(average,2);
+	}
+	var text = "总记录数:"+count+" ,最小差价:"+min+" ,最大差价:"+max+" ,平均差价:"+average;
+	$("#showText").html(text);
+}
+
+function fomatFloat(src,pos){      
+    return Math.round(src*Math.pow(10, pos))/Math.pow(10, pos);     
+} 
+
+function showData(rawData){
+	var data = splitData(rawData);
+	
+	myChart.setOption(option = {
+	        backgroundColor: '#eee',
+	        animation: false,
+	        legend: {
+	            left: 'center',
+	            data:['OKEX','LTCU17']
+	        },
+	        tooltip: {
+	            trigger: 'axis',
+	            axisPointer: {
+	                type: 'cross'
+	            },
+	            backgroundColor: 'rgba(245, 245, 245, 0.8)',
+	            borderWidth: 1,
+	            borderColor: '#ccc',
+	            padding: 10,
+	            textStyle: {
+	                color: '#000'
+	            },
+	            position: function (pos, params, el, elRect, size) {
+	                var obj = {top: 10};
+	                obj[['left', 'right'][+(pos[0] < size.viewSize[0] / 2)]] = 30;
+	                return obj;
+	            },
+	            extraCssText: 'width: 210px'
+	        },
+	        axisPointer: {
+	            link: {xAxisIndex: 'all'},
+	            label: {
+	                backgroundColor: '#777'
+	            }
+	        },
+	        brush: {
+	            xAxisIndex: 'all',
+	            brushLink: 'all',
+	            outOfBrush: {
+	                colorAlpha: 0.1
+	            }
+	        },
+	        visualMap: {
+				show:false,
+	            seriesIndex: 2,
+	            dimension: 2,
+	            pieces: [{
+	                value: 1,
+	                color: '#2f4554'
+	            }, {
+	                value: -1,
+	                color: '#c23531'
+	            }]
+	        },
+	        grid: [
+	            {
+	                left: '8%',
+	                right: '6%',
+	                height: '50%'
+	            },
+	            {
+	                left: '8%',
+	                right: '6%',
+	                top: '66%',
+	                height: '18%'
+	            }
+	        ],
+	        xAxis: [
+	            {
+	                type: 'category',
+	                data: data.PriceTime,
+	                scale: true,
+	                boundaryGap : false,
+	                axisLine: {onZero: false},
+	                splitLine: {show: false},
+	                splitNumber: 20,
+	                min: 'dataMin',
+	                max: 'dataMax',
+	                axisPointer: {
+	                    z: 100
+	                }
+	            },
+	            {
+	                type: 'category',
+	                gridIndex: 1,
+	                data: data.PriceTime,
+	                scale: true,
+	                boundaryGap : false,
+	                axisLine: {onZero: false},
+	                axisTick: {show: false},
+	                splitLine: {show: false},
+	                axisLabel: {show: false},
+	                splitNumber: 20,
+	                min: 'dataMin',
+	                max: 'dataMax',
+	                axisPointer: {
+	                    label: {
+	                        formatter: function (params) {
+	                            var seriesValue = (params.seriesData[0] || {}).value;
+	                            return params.value
+	                            + (seriesValue != null
+	                                ? '\n' + echarts.format.addCommas(seriesValue)
+	                                : ''
+	                            );
+	                        }
+	                    }
+	                }
+	            }
+	        ],
+	        yAxis: [
+	            {
+	                scale: true,
+	                splitArea: {
+	                    show: true
+	                }
+	            },
+	            {
+	                scale: true,
+	                gridIndex: 1,
+	                splitNumber: 2,
+	                axisLabel: {show: false},
+	                axisLine: {show: false},
+	                axisTick: {show: false},
+	                splitLine: {show: false}
+	            }
+	        ],
+	        dataZoom: [
+	            {
+	                type: 'inside',
+					xAxisIndex: [0, 1],
+	                start: 50,
+	                end: 100
+	            },
+	            {
+	                show: true,
+					xAxisIndex: [0, 1],
+	                type: 'slider',
+	                top: '88%',
+	                start: 50,
+	                end: 100
+	            }
+
+	        ],
+	        series: [
+	            {
+	                name: 'OKEX',
+	                type: 'line',
+	                data: data.okdata,
+	                smooth: true,
+	                lineStyle: {
+	                    normal: {opacity: 0.5}
+	                }
+	            },
+	            {
+	                name: 'LTCU17',
+	                type: 'line',
+	                data: data.usddata,
+	                smooth: true,
+	                lineStyle: {
+	                    normal: {opacity: 0.5}
+	                }
+	            },
+	            {
+	                name: 'OKEX与MEX差价',
+	                type: 'bar',
+	                xAxisIndex: 1,
+	                yAxisIndex: 1,
+	                data: data.agio
+	            }
+	        ]
+	    }, true);
+	//统计数据
+	total(data);
+}
+
+function getPriceData(){
+	var sdate = $("#sdate").val();
+    var edate = $("#edate").val();
+	var obj = new Object();
+	obj.startDt = sdate;
+	obj.endDt = edate;
+	$("body").mLoading("show");//显示loading组件
+	$.ajax({
+        url: "postPriceLtc.do",  
+	    data:obj,  
+	    dataType: 'json',
+	    type: 'GET',
+	    cache: false,
+	    success: function (data) {  
+	    	showData(data);
+	    	$("body").mLoading("hide");//隐藏loading组件
+	    },
+	    error:function(){
+	    	$("body").mLoading("hide");//隐藏loading组件
+	    }
+	});
+}
+	
+/*]]>*/
+</script>
+</html>
